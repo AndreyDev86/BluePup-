@@ -1,0 +1,6 @@
+{
+  "name": "Bass & EQ",
+  "description": "Android-приложение для управления звуком и басом через Bluetooth-колонку с глобальным эквалайзером.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
