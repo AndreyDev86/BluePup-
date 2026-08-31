@@ -66,7 +66,7 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Effects (Bass, Virtualizer, Loudness) -->
+        <!-- Loudness Enhancer -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -75,44 +75,6 @@
             android:padding="16dp"
             android:elevation="4dp"
             android:layout_marginBottom="24dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Усилитель Баса (Bass Boost)"
-                android:textColor="#FFFFFF"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="16dp" />
-
-            <SeekBar
-                android:id="@+id/bassSeekBar"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:max="1000"
-                android:progress="0"
-                android:progressTint="#BB86FC"
-                android:thumbTint="#BB86FC"
-                android:layout_marginBottom="24dp" />
-                
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Объемный звук (Virtualizer)"
-                android:textColor="#FFFFFF"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="16dp" />
-
-            <SeekBar
-                android:id="@+id/virtualizerSeekBar"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:max="1000"
-                android:progress="0"
-                android:progressTint="#03DAC5"
-                android:thumbTint="#03DAC5"
-                android:layout_marginBottom="24dp" />
                 
             <TextView
                 android:layout_width="wrap_content"
@@ -133,7 +95,7 @@
                 android:thumbTint="#FF5722" />
         </LinearLayout>
 
-        <!-- Equalizer -->
+        <!-- Equalizer and Bass -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -146,11 +108,29 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Эквалайзер"
+                android:text="Эквалайзер и Бас"
                 android:textColor="#FFFFFF"
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="16dp" />
+                
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Уровень Баса (Bass Boost)"
+                android:textColor="#BB86FC"
+                android:textSize="14sp"
+                android:layout_marginBottom="8dp" />
+
+            <SeekBar
+                android:id="@+id/bassSeekBar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="1000"
+                android:progress="0"
+                android:progressTint="#BB86FC"
+                android:thumbTint="#BB86FC"
+                android:layout_marginBottom="24dp" />
 
             <!-- Presets -->
             <LinearLayout

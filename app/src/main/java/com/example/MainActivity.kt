@@ -26,7 +26,6 @@ import androidx.core.content.ContextCompat
 class MainActivity : ComponentActivity() {
 
     private lateinit var bassSeekBar: SeekBar
-    private lateinit var virtualizerSeekBar: SeekBar
     private lateinit var loudnessSeekBar: SeekBar
     private lateinit var presetSpinner: Spinner
     private lateinit var btnSaveCustom: Button
@@ -38,7 +37,6 @@ class MainActivity : ComponentActivity() {
 
     private var bassBoost: BassBoost? = null
     private var equalizer: Equalizer? = null
-    private var virtualizer: Virtualizer? = null
     private var loudnessEnhancer: LoudnessEnhancer? = null
 
     // Названия пресетов загружаются динамически
@@ -46,7 +44,6 @@ class MainActivity : ComponentActivity() {
 
     // Переменные для дебаунса (ограничения частоты обновлений), чтобы не было "щелчков" при движении
     private var lastBassUpdate = 0L
-    private var lastVirtualizerUpdate = 0L
     private var lastLoudnessUpdate = 0L
     private var lastEqUpdate = 0L
 
@@ -92,7 +89,6 @@ class MainActivity : ComponentActivity() {
         setContentView(R.layout.activity_main)
 
         bassSeekBar = findViewById(R.id.bassSeekBar)
-        virtualizerSeekBar = findViewById(R.id.virtualizerSeekBar)
         loudnessSeekBar = findViewById(R.id.loudnessSeekBar)
         presetSpinner = findViewById(R.id.presetSpinner)
         btnSaveCustom = findViewById(R.id.btnSaveCustom)
@@ -134,16 +130,13 @@ class MainActivity : ComponentActivity() {
             // Применяется ко всем звукам устройства. Работает не на всех прошивках новых Android.
             bassBoost = BassBoost(0, 0)
             equalizer = Equalizer(0, 0)
-            virtualizer = Virtualizer(0, 0)
             loudnessEnhancer = LoudnessEnhancer(0)
 
             bassBoost?.enabled = true
             equalizer?.enabled = true
-            virtualizer?.enabled = true
             loudnessEnhancer?.enabled = true
 
             setupBassBoost()
-            setupVirtualizer()
             setupLoudnessEnhancer()
             setupEqualizer()
             setupPresets()
@@ -184,37 +177,6 @@ class MainActivity : ComponentActivity() {
                 val finalProgress = seekBar?.progress ?: 0
                 prefs.edit().putInt("bassLevel", finalProgress).apply()
                 try { bassBoost?.setStrength(finalProgress.toShort()) } catch (e: Exception) {}
-            }
-        })
-    }
-
-    private fun setupVirtualizer() {
-        virtualizerSeekBar.max = 1000
-        
-        val prefs = getSharedPreferences("AudioPrefs", MODE_PRIVATE)
-        val savedVirtualizer = prefs.getInt("virtualizerLevel", 0)
-        virtualizerSeekBar.progress = savedVirtualizer
-        
-        try {
-            virtualizer?.setStrength(savedVirtualizer.toShort())
-        } catch (e: Exception) {}
-
-        virtualizerSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (fromUser) {
-                    val now = System.currentTimeMillis()
-                    if (now - lastVirtualizerUpdate > 150) {
-                        try { virtualizer?.setStrength(progress.toShort()) } catch (e: Exception) {}
-                        lastVirtualizerUpdate = now
-                    }
-                }
-            }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                val finalProgress = seekBar?.progress ?: 0
-                prefs.edit().putInt("virtualizerLevel", finalProgress).apply()
-                try { virtualizer?.setStrength(finalProgress.toShort()) } catch (e: Exception) {}
             }
         })
     }
@@ -374,14 +336,20 @@ class MainActivity : ComponentActivity() {
                 // V-образная форма с сильным упором на бас
                 val newLevel = when {
                     freq <= 150 -> maxEQLevel // Усиление самых низких на 100%
-                    freq <= 350 -> (maxEQLevel * 0.6).toInt().toShort()
+                    freq <= 350 -> (maxEQLevel * 0.8).toInt().toShort()
                     freq <= 1000 -> 0.toShort() // Середина нейтральна
                     freq <= 3000 -> (-maxEQLevel * 0.2).toInt().toShort() // Легкий спад высоких средних
-                    else -> (maxEQLevel * 0.4).toInt().toShort() // Подъем верхов для четкости
+                    else -> (maxEQLevel * 0.3).toInt().toShort() // Подъем верхов для четкости
                 }
                 eq.setBandLevel(bandIndex, newLevel)
             }
             updateEqUIFromCurrentState()
+            
+            // Также выкручиваем встроенный BassBoost на максимум при выборе этого пресета
+            bassBoost?.setStrength(1000.toShort())
+            bassSeekBar.progress = 1000
+            val prefs = getSharedPreferences("AudioPrefs", MODE_PRIVATE)
+            prefs.edit().putInt("bassLevel", 1000).apply()
         } catch (e: Exception) {}
     }
     
@@ -506,7 +474,6 @@ class MainActivity : ComponentActivity() {
         } catch (e: Exception) {}
         bassBoost?.release()
         equalizer?.release()
-        virtualizer?.release()
         loudnessEnhancer?.release()
     }
 }
