@@ -41,8 +41,8 @@ class MainActivity : ComponentActivity() {
     private var virtualizer: Virtualizer? = null
     private var loudnessEnhancer: LoudnessEnhancer? = null
 
-    // Названия пресетов. 0-3 это стандартные (если поддерживаются), последний — пользовательский.
-    private val presets = mutableListOf("Flat", "Rock", "Pop", "Jazz", "Пользовательский")
+    // Названия пресетов загружаются динамически
+    private val presets = mutableListOf<String>()
 
     // Переменные для дебаунса (ограничения частоты обновлений), чтобы не было "щелчков" при движении
     private var lastBassUpdate = 0L
@@ -320,6 +320,21 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun setupPresets() {
+        presets.clear()
+        val eq = equalizer
+        if (eq != null) {
+            for (i in 0 until eq.numberOfPresets) {
+                presets.add(eq.getPresetName(i.toShort()))
+            }
+        }
+        // Если устройство не вернуло пресеты, добавим стандартные
+        if (presets.isEmpty()) {
+            presets.addAll(listOf("Normal", "Classical", "Dance", "Flat", "Folk", "Heavy Metal", "Hip Hop", "Jazz", "Pop", "Rock"))
+        }
+        
+        presets.add("Bass (Мощный Бас)")
+        presets.add("Пользовательский")
+
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, presets)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         presetSpinner.adapter = adapter
@@ -332,12 +347,11 @@ class MainActivity : ComponentActivity() {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 prefs.edit().putInt("selectedPreset", position).apply()
                 
-                if (position < presets.size - 1) {
-                    // Применяем предустановленные системные пресеты
-                    applyPreset(position)
-                } else {
-                    // Применяем сохраненный пользовательский
-                    loadCustomPreset()
+                val presetName = presets[position]
+                when (presetName) {
+                    "Пользовательский" -> loadCustomPreset()
+                    "Bass (Мощный Бас)" -> applyBassPreset()
+                    else -> applyPreset(position) // Пытаемся применить системный
                 }
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -347,6 +361,28 @@ class MainActivity : ComponentActivity() {
             saveCustomPreset()
             Toast.makeText(this, "Пользовательские настройки сохранены", Toast.LENGTH_SHORT).show()
         }
+    }
+    
+    private fun applyBassPreset() {
+        val eq = equalizer ?: return
+        try {
+            val maxEQLevel = eq.bandLevelRange[1]
+            for (i in 0 until eq.numberOfBands) {
+                val bandIndex = i.toShort()
+                val freq = eq.getCenterFreq(bandIndex) / 1000 // в Герцах
+                
+                // V-образная форма с сильным упором на бас
+                val newLevel = when {
+                    freq <= 150 -> maxEQLevel // Усиление самых низких на 100%
+                    freq <= 350 -> (maxEQLevel * 0.6).toInt().toShort()
+                    freq <= 1000 -> 0.toShort() // Середина нейтральна
+                    freq <= 3000 -> (-maxEQLevel * 0.2).toInt().toShort() // Легкий спад высоких средних
+                    else -> (maxEQLevel * 0.4).toInt().toShort() // Подъем верхов для четкости
+                }
+                eq.setBandLevel(bandIndex, newLevel)
+            }
+            updateEqUIFromCurrentState()
+        } catch (e: Exception) {}
     }
     
     private fun applyPreset(presetIndex: Int) {
