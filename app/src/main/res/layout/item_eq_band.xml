@@ -8,11 +8,12 @@
 
     <TextView
         android:id="@+id/bandFreqText"
-        android:layout_width="60dp"
+        android:layout_width="70dp"
         android:layout_height="wrap_content"
-        android:text="100 Hz"
+        android:textAlignment="center"
+        android:text="100 Hz\n(Бас)"
         android:textColor="#FFFFFF"
-        android:textSize="14sp" />
+        android:textSize="12sp" />
 
     <SeekBar
         android:id="@+id/bandSeekBar"

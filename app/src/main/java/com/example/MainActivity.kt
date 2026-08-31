@@ -44,6 +44,12 @@ class MainActivity : ComponentActivity() {
     // Названия пресетов. 0-3 это стандартные (если поддерживаются), последний — пользовательский.
     private val presets = mutableListOf("Flat", "Rock", "Pop", "Jazz", "Пользовательский")
 
+    // Переменные для дебаунса (ограничения частоты обновлений), чтобы не было "щелчков" при движении
+    private var lastBassUpdate = 0L
+    private var lastVirtualizerUpdate = 0L
+    private var lastLoudnessUpdate = 0L
+    private var lastEqUpdate = 0L
+
     // Ресивер для прослушивания заряда батареи Bluetooth-устройства
     private val batteryReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -163,15 +169,21 @@ class MainActivity : ComponentActivity() {
 
         bassSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                try {
-                    bassBoost?.setStrength(progress.toShort())
-                } catch (e: Exception) {}
+                if (fromUser) {
+                    val now = System.currentTimeMillis()
+                    if (now - lastBassUpdate > 150) {
+                        try { bassBoost?.setStrength(progress.toShort()) } catch (e: Exception) {}
+                        lastBassUpdate = now
+                    }
+                }
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                // Сохранение уровня баса при отпускании ползунка
-                prefs.edit().putInt("bassLevel", seekBar?.progress ?: 0).apply()
+                // Сохранение уровня баса при отпускании ползунка и финальное применение эффекта
+                val finalProgress = seekBar?.progress ?: 0
+                prefs.edit().putInt("bassLevel", finalProgress).apply()
+                try { bassBoost?.setStrength(finalProgress.toShort()) } catch (e: Exception) {}
             }
         })
     }
@@ -189,14 +201,20 @@ class MainActivity : ComponentActivity() {
 
         virtualizerSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                try {
-                    virtualizer?.setStrength(progress.toShort())
-                } catch (e: Exception) {}
+                if (fromUser) {
+                    val now = System.currentTimeMillis()
+                    if (now - lastVirtualizerUpdate > 150) {
+                        try { virtualizer?.setStrength(progress.toShort()) } catch (e: Exception) {}
+                        lastVirtualizerUpdate = now
+                    }
+                }
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                prefs.edit().putInt("virtualizerLevel", seekBar?.progress ?: 0).apply()
+                val finalProgress = seekBar?.progress ?: 0
+                prefs.edit().putInt("virtualizerLevel", finalProgress).apply()
+                try { virtualizer?.setStrength(finalProgress.toShort()) } catch (e: Exception) {}
             }
         })
     }
@@ -214,14 +232,20 @@ class MainActivity : ComponentActivity() {
 
         loudnessSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                try {
-                    loudnessEnhancer?.setTargetGain(progress)
-                } catch (e: Exception) {}
+                if (fromUser) {
+                    val now = System.currentTimeMillis()
+                    if (now - lastLoudnessUpdate > 150) {
+                        try { loudnessEnhancer?.setTargetGain(progress) } catch (e: Exception) {}
+                        lastLoudnessUpdate = now
+                    }
+                }
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                prefs.edit().putInt("loudnessLevel", seekBar?.progress ?: 0).apply()
+                val finalProgress = seekBar?.progress ?: 0
+                prefs.edit().putInt("loudnessLevel", finalProgress).apply()
+                try { loudnessEnhancer?.setTargetGain(finalProgress) } catch (e: Exception) {}
             }
         })
     }
@@ -243,9 +267,14 @@ class MainActivity : ComponentActivity() {
             val savedLevel = prefs.getInt("band_$bandIndex", eq.getBandLevel(bandIndex).toInt()).toShort()
             eq.setBandLevel(bandIndex, savedLevel)
 
-            // Форматирование частоты
+            // Форматирование частоты и добавление подписей
             val freq = eq.getCenterFreq(bandIndex)
-            val freqText = if (freq < 1000000) "${freq / 1000} Hz" else "${freq / 1000000} kHz"
+            val hz = freq / 1000
+            val freqText = when {
+                hz < 250 -> "$hz Hz\n(Бас)"
+                hz < 4000 -> if (hz >= 1000) "${hz/1000} kHz\n(СЧ)" else "$hz Hz\n(СЧ)"
+                else -> "${hz / 1000} kHz\n(ВЧ)"
+            }
 
             val bandView = LayoutInflater.from(this).inflate(R.layout.item_eq_band, eqBandsContainer, false)
             val bandFreqText: TextView = bandView.findViewById(R.id.bandFreqText)
@@ -263,19 +292,27 @@ class MainActivity : ComponentActivity() {
             bandSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                     val newLevel = (progress + minEQLevel).toShort()
-                    try {
-                        eq.setBandLevel(bandIndex, newLevel)
-                        bandGainText.text = "${newLevel / 100} dB"
-                    } catch (e: Exception) {}
+                    bandGainText.text = "${newLevel / 100} dB"
                     
                     if (fromUser) {
                         // Переключение на "Пользовательский" при ручном изменении
                         presetSpinner.setSelection(presets.size - 1)
+                        
+                        // Троттлинг обновлений для предотвращения щелчков
+                        val now = System.currentTimeMillis()
+                        if (now - lastEqUpdate > 150) {
+                            try { eq.setBandLevel(bandIndex, newLevel) } catch (e: Exception) {}
+                            lastEqUpdate = now
+                        }
                     }
                 }
 
                 override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                    // Окончательное применение эффекта при отпускании
+                    val newLevel = ((seekBar?.progress ?: 0) + minEQLevel).toShort()
+                    try { eq.setBandLevel(bandIndex, newLevel) } catch (e: Exception) {}
+                }
             })
 
             eqBandsContainer.addView(bandView)
